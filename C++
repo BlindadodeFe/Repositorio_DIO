@@ -1,0 +1,117 @@
+#include <iostream>
+#include <string>
+#include <vector>
+
+using namespace std;
+
+// Classe base para as contas bancárias
+class ContaBancaria {
+public:
+    ContaBancaria(string nome, double saldo) : nome(nome), saldo(saldo) {}
+    virtual ~ContaBancaria() {}
+
+    virtual double getSaldo() const { return saldo; }
+
+    virtual bool sacar(double valor) {
+        if (saldo >= valor) {
+            saldo -= valor;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    virtual void depositar(double valor) {
+        saldo += valor;
+    }
+
+    virtual void transferir(ContaBancaria& outraConta, double valor) {
+        bool sacou = sacar(valor);
+        if (sacou) {
+            outraConta.depositar(valor);
+        }
+    }
+
+protected:
+    string nome;
+    double saldo;
+};
+
+// Classe para a conta corrente
+class ContaCorrente : public ContaBancaria {
+public:
+    ContaCorrente(string nome, double saldo) : ContaBancaria(nome, saldo) {}
+    ~ContaCorrente() {}
+
+    double getSaldo() const override { return saldo - limiteChequeEspecial; }
+
+private:
+    double limiteChequeEspecial = 1000.0;
+};
+
+// Classe para a conta salário
+class ContaSalario : public ContaBancaria {
+public:
+    ContaSalario(string nome, double saldo) : ContaBancaria(nome, saldo) {}
+    ~ContaSalario() {}
+};
+
+// Classe para a conta poupança
+class ContaPoupanca : public ContaBancaria {
+public:
+    ContaPoupanca(string nome, double saldo) : ContaBancaria(nome, saldo) {}
+    ~ContaPoupanca() {}
+};
+
+// Classe para a conta de investimento
+class ContaInvestimento : public ContaBancaria {
+public:
+    ContaInvestimento(string nome, double saldo) : ContaBancaria(nome, saldo) {}
+    ~ContaInvestimento() {}
+
+    bool sacar(double valor) override {
+        if (saldo >= valor * taxaSaque) {
+            saldo -= valor * taxaSaque;
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+private:
+    double taxaSaque = 1.1;
+};
+
+// Aspecto para verificar o saldo antes de realizar um saque
+aspect VerificarSaldoAspect {
+public:
+    pointcut saquePointcut(): call(bool ContaBancaria::sacar(double));
+
+    before(ContaBancaria& conta, double valor): saquePointcut() {
+        if (conta.getSaldo() < valor) {
+            cout << "Saldo insuficiente para realizar o saque na conta " << conta.nome << endl;
+        }
+    }
+};
+
+int main() {
+    // Criação das contas bancárias
+    vector<ContaBancaria*> contas;
+    contas.push_back(new ContaCorrente("João", 1000.0));
+    contas.push_back(new ContaSalario("Maria", 2000.0));
+    contas.push_back(new ContaPoupanca("Pedro", 3000.0));
+    contas.push_back(new ContaInvestimento("Ana", 4000.0));
+
+    // Realização de saques nas contas
+    contas[0]->sacar(500.0); // Saque na conta corrente com sucesso
+    contas[1]->sacar(3000.0); // Saque na conta salário com erro de saldo insuficiente
+    contas[2]->sacar(2000.0); // Saque na conta poupança com sucesso
+    contas[3]->sacar(5000.0); // Saque na conta de investimento com erro de saldo insuficiente
+
+    // Liberação da memória das contas bancárias
+    for (auto& conta : contas) {
+        delete conta;
+    }
+
+    return 0;
+}
